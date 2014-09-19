@@ -31,6 +31,10 @@ public class IteratorEmitter<T> implements SyncStreamEmitter<T> {
             item = StreamItem.end();
         }
         cb.accept(item);
+
+        if (item.isValue()) {
+            cb.next();
+        }
     }
 
 }

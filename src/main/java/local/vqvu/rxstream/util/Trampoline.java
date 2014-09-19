@@ -51,6 +51,7 @@ public class Trampoline<T> {
         while (!paused && !done && !waitingOnEmit) {
             if (emitEndNext) {
                 emit(StreamItem.end());
+                emitEndNext = false;
             } else {
                 waitingOnEmit = true;
                 emitter.emitOne(new Callback());
@@ -87,36 +88,47 @@ public class Trampoline<T> {
      */
     private void next() {
         synchronized (lock) {
+            if (emitEndNext || done || !waitingOnEmit) {
+                throw new IllegalStateException("Next called too many times.");
+            }
+
             waitingOnEmit = false;
+
             runEmitLoop();
         }
     }
 
     private void emit(StreamItem<? extends T> item) {
         consumer.accept(item);
+
+        if (emitEndNext) {
+            consumer.accept(StreamItem.end());
+        }
+
         if (!item.isValue()) {
             stop();
-        } else {
-            next();
         }
     }
 
     private class Callback implements EmitCallback<T> {
-
         @Override
         public void accept(StreamItem<? extends T> item) {
-            accept(item, false);
-        }
-
-        @Override
-        public void accept(StreamItem<? extends T> item, boolean emitEnd) {
-            emitEndNext = emitEnd;
             emit(item);
         }
 
         @Override
-        public void retry() {
-            next();
+        public void acceptLastValue(StreamItem<? extends T> item) throws IllegalArgumentException {
+            if (!item.isValue()) {
+                throw new IllegalArgumentException("Item must be a VALUE.");
+            }
+
+            emitEndNext = true;
+            emit(item);
+        }
+
+        @Override
+        public void next() throws IllegalStateException {
+            Trampoline.this.next();
         }
 
     }

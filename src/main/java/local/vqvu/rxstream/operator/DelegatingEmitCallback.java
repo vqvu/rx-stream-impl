@@ -19,8 +19,18 @@ public abstract class DelegatingEmitCallback<T,D> implements EmitCallback<T> {
         accept(item, false);
     }
 
-    protected void emitValue(D value) {
-        getDelegate().accept(StreamItem.value(value));
+    @Override
+    public void acceptLastValue(StreamItem<? extends T> item) throws IllegalArgumentException {
+        if (!item.isValue()) {
+            throw new IllegalArgumentException("Item must be a VALUE.");
+        }
+        accept(item, true);
+    }
+
+    protected abstract void accept(StreamItem<? extends T> item, boolean isLast);
+
+    protected void emitValue(D value, boolean isLast) {
+        emitItem(StreamItem.value(value), isLast);
     }
 
     protected void emitError(Throwable error) {
@@ -31,8 +41,20 @@ public abstract class DelegatingEmitCallback<T,D> implements EmitCallback<T> {
         getDelegate().accept(StreamItem.end());
     }
 
+    protected void emitItem(StreamItem<? extends D> item) {
+        emitItem(item, false);
+    }
+
+    protected void emitItem(StreamItem<? extends D> item, boolean isLast) {
+        if (isLast && item.isValue()) {
+            getDelegate().acceptLastValue(item);
+        } else {
+            getDelegate().accept(item);
+        }
+    }
+
     @Override
-    public void retry() {
-        getDelegate().retry();
+    public void next() throws IllegalStateException {
+        getDelegate().next();
     }
 }

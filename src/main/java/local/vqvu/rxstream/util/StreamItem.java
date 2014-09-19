@@ -129,6 +129,11 @@ public class StreamItem<T> {
         return new StreamItem<T>(Type.VALUE, val, null);
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T> StreamItem<T> safeCast(StreamItem<? extends T> item) {
+        return (StreamItem<T>) item;
+    }
+
     public enum Type {
         VALUE, ERROR, END
     }

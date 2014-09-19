@@ -47,22 +47,23 @@ public class BufferOperator<T> implements Operator<T,List<T>> {
 
                             if (buffer.size() == bufferSize) {
                                 emitBuffer(false);
-                            } else {
-                                getDelegate().retry();
                             }
                         } else if (item.isError()) {
                             buffer = null;
-                            getDelegate().accept(item.<List<T>>castIfNotValue());
+                            emitItem(item.<List<T>>castIfNotValue());
                         } else {
-                            emitBuffer(true);
+                            if (buffer == null) {
+                                emitEnd();
+                            } else {
+                                emitBuffer(true);
+                            }
                         }
                     }
                 }
 
-                private void emitBuffer(boolean emitEnd) {
-                    StreamItem<List<T>> bufferItem = StreamItem.value(buffer);
+                private void emitBuffer(boolean isLast) {
+                    emitValue(buffer, isLast);
                     buffer = null;
-                    getDelegate().accept(bufferItem, emitEnd);
                 }
             });
         }

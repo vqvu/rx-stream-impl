@@ -33,11 +33,11 @@ public final class MapOperator<T, R> implements Operator<T, R> {
         public void emitOne(EmitCallback<? super R> cb) {
             getSource().emitOne(new DelegatingEmitCallback<T,R>(cb) {
                 @Override
-                public void accept(StreamItem<? extends T> item, boolean emitEnd) {
+                public void accept(StreamItem<? extends T> item, boolean isLast) {
                     if (item.getType() == Type.VALUE) {
-                        getDelegate().accept(map(item.getValue()), emitEnd);
+                        emitItem(map(item.getValue()), isLast);
                     } else {
-                        getDelegate().accept(item.<R>castIfNotValue(), emitEnd);
+                        emitItem(item.<R>castIfNotValue(), isLast);
                     }
                 }
             });

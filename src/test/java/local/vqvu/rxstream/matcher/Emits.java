@@ -44,6 +44,10 @@ public class Emits<T> extends AsyncEmitterMatcher<Publisher<T>, T> {
         });
     }
 
+    public static <T> Emits<T> emitsNothing() {
+        return emitsValues();
+    }
+
     @SafeVarargs
     public static <T> Emits<T> emitsValues(T...vals) {
         return emitsValues(Arrays.asList(vals));

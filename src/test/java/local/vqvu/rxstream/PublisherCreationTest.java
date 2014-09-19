@@ -1,12 +1,14 @@
 package local.vqvu.rxstream;
 
 import static local.vqvu.rxstream.matcher.Emits.emits;
+import static local.vqvu.rxstream.matcher.Emits.emitsNothing;
 import static local.vqvu.rxstream.matcher.Emits.emitsValues;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -79,6 +81,14 @@ public class PublisherCreationTest {
         assertThat(pub, emitsValues(expected));
         assertThat(pub, emitsValues(expected));
         assertThat(Iterables.asList(pub.toSynchronousPublisher()), equalTo(expected));
+    }
+
+    @Test
+    public void emptyBufferWorks() {
+        Publisher<List<Object>> pub = Publishers.empty().buffer(1);
+        assertThat(pub, emitsNothing());
+        assertThat(pub, emitsNothing());
+        assertThat(Iterables.asList(pub.toSynchronousPublisher()), equalTo(new ArrayList<>()));
     }
 
     @Test

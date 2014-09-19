@@ -19,24 +19,41 @@ import local.vqvu.rxstream.util.StreamItem.Type;
  * @author vqvu
  *
  * @param <T>
+ *
+ * @see StreamItem
  */
 public interface StreamEmitter<T> {
     /**
      * Request that the emitter emit one {@link StreamItem} object via the
-     * callback. This method may be called from any thread. It must eventually
-     * emit exactly one item (or call {@link EmitCallback#retry()}) for every
-     * call. However, it needs not do so before the call returns, and it may
-     * emit the item on any thread (not just the calling thread). The caller is
-     * required to ensure the following:
+     * callback. This method may be called from any thread and must eventually
+     * do one of the following:
+     * <ul>
+     * <li>If the emitter is not ready to emit but has more data, call
+     * {@link EmitCallback#next()}.
+     * <li>If the emitter knows that it has exactly one value left and is ready
+     * to emit that value, call {@link EmitCallback#accept(StreamItem, boolean)}
+     * with the {@code value} item.
+     * <li>If the emitter is ready to emit a value (and knows nothing about the
+     * rest of the stream), call {@link EmitCallback#accept(StreamItem)} with
+     * the {@code value} item and followed by {@link EmitCallback#next()}.
+     * <li>If the emitter has no values left or has encountered an error, call
+     * {@link EmitCallback#accept(StreamItem)} with the {@code error} or
+     * {@code end} item.
+     * </ul>
+     * The emitter may perform the above actions asynchronously. That is, it
+     * needs not emit anything before this method returns, and it may emit on
+     * any thread (not just the calling thread).
+     * <p>
+     * The caller of this method is required to ensure the following:
      * <ul>
      * <li>Only one request can be "in flight" at a time. That is, once this
-     * method is called once, it must not be called again until it emits to the
-     * callback (i.e., calls one of the callback methods).
+     * method is called once, it must not be called again until it calls
+     * {@link EmitCallback#next()}.
      * <li>Once this method is called once, it must not be called again until it
      * returns <em>even if it synchronously emits to the callback</em>. Thus,
      * this method need not be reentrant.
-     * <li>Once this method emits an item with {@link Type} {@link Type#ERROR}
-     * or {@link Type#END}, it must not be called again.
+     * <li>Once this method emits an item with {@link Type#ERROR} or
+     * {@link Type#END}, it must not be called again.
      * </ul>
      *
      * @param cb the callback to push the emitted item to.
@@ -71,35 +88,35 @@ public interface StreamEmitter<T> {
         void accept(StreamItem<? extends T> item);
 
         /**
-         * Emit the {@code item} to the callback, with an option to also emit a
-         * {@link Type#END} item on the same thread.
+         * Emit the {@code item} to the callback, along with a {@link Type#END}
+         * item on the same thread. Item must be {@link Type#VALUE}.
          * <p>
-         * If {@code item} is a value, then this method is equivalent to calling
-         * {@code
+         * This method is equivalent to calling {@code
          *     accept(item);
          *     accept(StreamItem.end());
-         * }
-         * but with the benefit that of being atomic. That is, calling
-         * {@link #accept(StreamItem)} twice can introduce a race condition
-         * where {@link StreamEmitter#emitOne(EmitCallback)} may be called again
-         * in between the two {@code accept()} calls. This method is useful when
-         * an emitter knows that it has run out of data and does not wish to
-         * keep extra state just to
-         * <p>
-         * If {@code item} is an error or end item, then this method is
-         * equivalent to calling {@code accept(item)}.
+         * } over two invocations of {@link StreamEmitter#emitOne(EmitCallback)}
+         * but with the benefit of not having to keep extra if the emitter knows
+         * that it has no values left.
          *
          * @param item the item to emit.
          * @param emitEnd if {@code true} also emit an end item.
+         * @throws IllegalArgumentException if {@code item} is not a
+         *             {@code value}.
          */
-        void accept(StreamItem<? extends T> item, boolean emitEnd);
+        void acceptLastValue(StreamItem<? extends T> item) throws IllegalArgumentException;
 
         /**
-         * Request that the owner of the callback retry its call to
-         * {@link StreamEmitter#emitOne(EmitCallback)}. This method is useful
-         * for implementing transforming emitters that must pull from another
-         * {@link StreamEmitter} source.
+         * Signals to the owner of the callback that the emitter is ready for
+         * another call to {@link StreamEmitter#emitOne(EmitCallback)}. This
+         * method may optionally throw an {@link IllegalStateException} if the
+         * {@link StreamEmitter} did not follow the contract outlined in
+         * {@link StreamEmitter#emitOne(EmitCallback)}.
+         *
+         * @throws IllegalStateException if this method is called in a way that
+         *             violates the contract outlined in
+         *             {@link StreamEmitter#emitOne(EmitCallback)}.
+         * @see StreamEmitter#emitOne(EmitCallback)
          */
-        void retry();
+        void next() throws IllegalStateException;
     }
 }

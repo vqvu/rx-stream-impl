@@ -53,58 +53,69 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
         private void pullChildSourceAndEmit(EmitCallback<? super T> cb) {
             getSource().emitOne(new DelegatingEmitCallback<Publisher<? extends T>, T>(cb) {
                 @Override
-                public void accept(StreamItem<? extends Publisher<? extends T>> item, boolean emitEnd) {
+                public void accept(StreamItem<? extends Publisher<? extends T>> item, boolean isLast) {
                     synchronized(lock) {
                         if (!item.isValue()) {
                             endReached = true;
-                            getDelegate().accept(item.<T>castIfNotValue());
+                            emitItem(item.<T>castIfNotValue());
                         } else {
+                            endReached = isLast;
                             Publisher<? extends T> pub = item.getValue();
                             if (pub != null) {
                                 childSource = pub.createEmitter();
+                            }
 
-                                if (emitEnd) {
-                                    endReached = true;
-                                }
-
-                                emitNext(getDelegate());
-                            } else {
-                                if (emitEnd) {
-                                    getDelegate().accept(StreamItem.<T>end());
-                                } else {
-                                    getDelegate().retry();
-                                }
+                            // This means #next won't be called and there is
+                            // nothing left to emit.
+                            if (isLast && childSource == null) {
+                                emitEnd();
                             }
                         }
                     }
+                }
+
+                @Override
+                public void next() {
+                    emitNext(getDelegate());
                 }
             });
         }
 
         /**
          * Attempt to emit the next from {@code childSource} to the callback.
-         * This method should only be called when the lock is held and
-         * {@code childSource} is not {@code null}.
+         * This method should only be called when {@code childSource} is not
+         * {@code null}.
          *
          * @param cb a callback
          */
         private void emitNext(EmitCallback<? super T> cb) {
-            childSource.emitOne(new DelegatingEmitCallback<T,T>(cb) {
-                @Override
-                public void accept(StreamItem<? extends T> item, boolean emitEnd) {
-                    synchronized (lock) {
-                        if (item.isEnd()) {
-                            childSource = null;
-                            getDelegate().retry();
-                        } else {
-                            if (emitEnd) {
+            synchronized (lock) {
+                childSource.emitOne(new DelegatingEmitCallback<T,T>(cb) {
+                    @Override
+                    public void accept(StreamItem<? extends T> item, boolean emitEnd) {
+                        // TODO: Bug with ERROR item handling.
+                        synchronized (lock) {
+                            if (item.isEnd()) {
                                 childSource = null;
+                                next();
+                            } else {
+                                if (!emitEnd) {
+                                    emitItem(item);
+                                } else {
+                                    childSource = null;
+                                    if (endReached) {
+                                        // Nothing left, so we emit a last.
+                                        emitItem(item, true);
+                                    } else {
+                                        // Otherwise, signal we are ready for next.
+                                        next();
+                                    }
+                                }
                             }
-                            getDelegate().accept(item, emitEnd && endReached);
                         }
                     }
-                }
-            });
+                });
+            }
         }
     }
 }
