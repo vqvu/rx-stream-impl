@@ -38,7 +38,7 @@ public class Publisher<T> implements org.reactivestreams.Publisher<T> {
 
     public <R> Publisher<R> transform(final Operator<? super T, ? extends R> operator) {
         return Publishers.create(() -> {
-            return safeCast(operator.apply(createEmitter()));
+            return StreamEmitter.safeCast(operator.apply(createEmitter()));
         });
     }
 
@@ -61,20 +61,8 @@ public class Publisher<T> implements org.reactivestreams.Publisher<T> {
 
     public StreamEmitter<T> createEmitter() {
         synchronized (generator) {
-            return safeCast(generator.get());
+            return StreamEmitter.safeCast(generator.get());
         }
-    }
-
-    /**
-     * Safely casts the emitter from some subtype of {@code T} to {@code T}.
-     *
-     * @param emitter the emitter to cast.
-     * @return an emitter with generic type {@code T}
-     */
-    @SuppressWarnings("unchecked")
-    private static <T> StreamEmitter<T> safeCast(StreamEmitter<? extends T> emitter) {
-        // StreamEmitter is covariant, so this is ok..
-        return (StreamEmitter<T>) emitter;
     }
 
     public interface Operator<T, R> extends

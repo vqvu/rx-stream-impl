@@ -9,11 +9,10 @@ import local.vqvu.rxstream.util.StreamItem.Type;
 /**
  * A {@code StreamEmitter} is the asynchronous dual of an {@link Iterator}.
  * Instead of having an {@link Iterator#next()} method that returns data, it has
- * an {{@link #emitOne(EmitCallback)} method that eventually pushes a value to
- * a specified {@link EmitCallback}.
+ * an {{@link #emitOne(EmitCallback)} method that eventually pushes a value to a
+ * specified {@link EmitCallback}.
  * <p>
- * This
- * type is intended to be covariant, so it is always safe to upcast a
+ * This type is intended to be covariant, so it is always safe to upcast a
  * {@code StreamEmitter<T>} to {@code StreamEmitter<R>} where R is a superclass
  * of T.
  *
@@ -43,6 +42,17 @@ public interface StreamEmitter<T> {
      * @param cb the callback to push the emitted item to.
      */
     void emitOne(EmitCallback<? super T> cb);
+
+    /**
+     * Safely casts the emitter from some subtype of {@code T} to {@code T}.
+     *
+     * @param emitter the emitter to cast.
+     * @return an emitter with generic type {@code T}
+     */
+    @SuppressWarnings("unchecked")
+    static <T> StreamEmitter<T> safeCast(StreamEmitter<? extends T> emitter) {
+        return (StreamEmitter<T>) emitter;
+    }
 
     /**
      * The callback object to use with the {@link StreamEmitter} interface.
