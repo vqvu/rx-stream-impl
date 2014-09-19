@@ -3,7 +3,6 @@ package local.vqvu.rxstream.operator;
 import local.vqvu.rxstream.Publisher;
 import local.vqvu.rxstream.Publisher.Operator;
 import local.vqvu.rxstream.emitter.StreamEmitter;
-import local.vqvu.rxstream.emitter.TransformingStreamEmitter;
 import local.vqvu.rxstream.exception.StreamEmitterException;
 import local.vqvu.rxstream.util.StreamItem;
 
@@ -13,14 +12,15 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
         return new Emitter<T>(source);
     }
 
-    private static class Emitter<T> extends TransformingStreamEmitter<Publisher<? extends T>, T> {
+    private static class Emitter<T> implements StreamEmitter<T> {
+        private final StreamEmitter<? extends Publisher<? extends T>> parentSource;
         private StreamEmitter<? extends T> childSource;
         private boolean endReached;
 
         private final Object lock;
 
         public Emitter(StreamEmitter<? extends Publisher<? extends T>> source) {
-            super(source);
+            this.parentSource = source;
             this.childSource = null;
             this.endReached = false;
             this.lock = this;
@@ -51,13 +51,13 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
          * @param cb a callback
          */
         private void pullChildSourceAndEmit(EmitCallback<? super T> cb) {
-            getSource().emitOne(new DelegatingEmitCallback<Publisher<? extends T>, T>(cb) {
+            parentSource.emitOne(new EmitCallback<Publisher<? extends T>>() {
                 @Override
                 public void accept(StreamItem<? extends Publisher<? extends T>> item, boolean isLast) {
                     synchronized(lock) {
                         if (!item.isValue()) {
                             endReached = true;
-                            emitItem(item.<T>castIfNotValue());
+                            cb.accept(item.castIfNotValue());
                         } else {
                             endReached = isLast;
                             Publisher<? extends T> pub = item.getValue();
@@ -68,7 +68,7 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
                             // This means #next won't be called and there is
                             // nothing left to emit.
                             if (isLast && childSource == null) {
-                                emitEnd();
+                                cb.acceptEnd();
                             }
                         }
                     }
@@ -76,7 +76,7 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
 
                 @Override
                 public void next() {
-                    emitNext(getDelegate());
+                    emitNext(cb);
                 }
             });
         }
@@ -90,7 +90,7 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
          */
         private void emitNext(EmitCallback<? super T> cb) {
             synchronized (lock) {
-                childSource.emitOne(new DelegatingEmitCallback<T,T>(cb) {
+                childSource.emitOne(new EmitCallback<T>() {
                     @Override
                     public void accept(StreamItem<? extends T> item, boolean emitEnd) {
                         // TODO: Bug with ERROR item handling.
@@ -100,12 +100,12 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
                                 next();
                             } else {
                                 if (!emitEnd) {
-                                    emitItem(item);
+                                    cb.accept(item);
                                 } else {
                                     childSource = null;
                                     if (endReached) {
                                         // Nothing left, so we emit a last.
-                                        emitItem(item, true);
+                                        cb.acceptLast(item);
                                     } else {
                                         // Otherwise, signal we are ready for next.
                                         next();
@@ -113,6 +113,11 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
                                 }
                             }
                         }
+                    }
+
+                    @Override
+                    public void next() throws IllegalStateException {
+                        cb.next();
                     }
                 });
             }

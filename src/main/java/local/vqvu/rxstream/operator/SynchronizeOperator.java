@@ -2,11 +2,11 @@ package local.vqvu.rxstream.operator;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.function.Supplier;
 
 import local.vqvu.rxstream.Publisher.Operator;
 import local.vqvu.rxstream.emitter.StreamEmitter;
 import local.vqvu.rxstream.emitter.SyncStreamEmitter;
-import local.vqvu.rxstream.emitter.TransformingStreamEmitter;
 import local.vqvu.rxstream.util.StreamItem;
 
 
@@ -17,63 +17,47 @@ public class SynchronizeOperator<T> implements Operator<T, T> {
         return new Emitter<>(t);
     }
 
-    private static class Emitter<T> extends TransformingStreamEmitter<T, T> implements SyncStreamEmitter<T> {
-        private static final Runnable STOP_SENTINAL = () -> {};
-
-        private final BlockingQueue<Runnable> actionQueue;
-        private final Object lock;
+    private static class Emitter<T> implements SyncStreamEmitter<T> {
+        private final StreamEmitter<? extends T> source;
+        private final BlockingQueue<Supplier<Boolean>> actionQueue;
 
         public Emitter(StreamEmitter<? extends T> source) {
-            super(source);
-            this.actionQueue = new LinkedBlockingDeque<>(3);
-            this.lock = this;
+            this.source = source;
+            this.actionQueue = new LinkedBlockingDeque<>(2);
         }
 
         @Override
         public void emitOne(EmitCallback<? super T> cb) {
-            synchronized (lock) {
-                getSource().emitOne(new EmitCallback<T>() {
-                    @Override
-                    public void accept(StreamItem<? extends T> item) {
-                        setAction(() -> {
-                            cb.accept(item);
-                        });
-                        if (!item.isValue()) {
-                            setAction(STOP_SENTINAL);
-                        }
-                    }
+            source.emitOne(new EmitCallback<T>() {
+                @Override
+                public void accept(StreamItem<? extends T> item, boolean isLast) {
+                    setAction(() -> {
+                        cb.accept(item, isLast);
+                        return !item.isValue() || isLast;
+                    });
+                }
 
-                    @Override
-                    public void acceptLastValue(StreamItem<? extends T> item) throws IllegalArgumentException {
-                        setAction(() -> {
-                            cb.acceptLastValue(item);
-                        });
-                        setAction(STOP_SENTINAL);
-                    }
+                @Override
+                public void next() throws IllegalStateException {
+                    setAction(() -> {
+                        cb.next();
+                        return true;
+                    });
+                }
+            });
 
-                    @Override
-                    public void next() throws IllegalStateException {
-                        setAction(cb::next);
-                        setAction(STOP_SENTINAL);
+            while (true) {
+                try {
+                    Supplier<Boolean> shouldContinue = actionQueue.take();
+                    if (shouldContinue.get()) {
+                        break;
                     }
-                });
-
-                while (true) {
-                    Runnable action;
-                    try {
-                        action = actionQueue.take();
-                        if (action == STOP_SENTINAL) {
-                            break;
-                        } else {
-                            action.run();
-                        }
-                    } catch (InterruptedException e) {
-                    }
+                } catch (InterruptedException e) {
                 }
             }
         }
 
-        private void setAction(Runnable action) {
+        private void setAction(Supplier<Boolean> action) {
             actionQueue.add(action);
         }
     }

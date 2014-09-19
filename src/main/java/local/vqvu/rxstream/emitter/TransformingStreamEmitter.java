@@ -1,14 +1,49 @@
 package local.vqvu.rxstream.emitter;
 
+import java.util.concurrent.atomic.AtomicReference;
 
-public abstract class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
+import local.vqvu.rxstream.util.StreamItem;
+
+
+public class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
     private final StreamEmitter<? extends T> source;
+    private final TransformCallback<T,R> consumeCb;
 
-    public TransformingStreamEmitter(StreamEmitter<? extends T> source) {
+    public TransformingStreamEmitter(StreamEmitter<? extends T> source, TransformCallback<T,R> consumeCb) {
         this.source = source;
+        this.consumeCb = consumeCb;
     }
 
-    protected StreamEmitter<? extends T> getSource() {
-        return source;
+    @Override
+    public void emitOne(EmitCallback<? super R> cb) {
+        source.emitOne(new EmitCallback<T>() {
+            AtomicReference<StreamItem<? extends T>> item = new AtomicReference<>(null);
+
+            @Override
+            public void accept(StreamItem<? extends T> item, boolean isLast) {
+                if (item.isValue() && !isLast) {
+                    this.item.set(item);
+                } else {
+                    consumeCb.accept(item, isLast, cb);
+                }
+            }
+
+            @Override
+            public void next() throws IllegalStateException {
+                StreamItem<? extends T> item = this.item.getAndSet(null);
+                if (item == null) {
+                    cb.next();
+                } else {
+                    consumeCb.accept(item, false, cb);
+                }
+            }
+        });
+    }
+
+    public interface TransformCallback<T, R> {
+        /**
+         *
+         */
+        void accept(StreamItem<? extends T> item, boolean isLast, EmitCallback<? super R> cb);
     }
 }

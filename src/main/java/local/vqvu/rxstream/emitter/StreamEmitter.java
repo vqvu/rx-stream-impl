@@ -38,7 +38,8 @@ public interface StreamEmitter<T> {
      * the {@code value} item and followed by {@link EmitCallback#next()}.
      * <li>If the emitter has no values left or has encountered an error, call
      * {@link EmitCallback#accept(StreamItem)} with the {@code error} or
-     * {@code end} item.
+     * {@code end} item. The emitter may also call
+     * {@link EmitCallback#acceptLast(StreamItem)} instead.
      * </ul>
      * The emitter may perform the above actions asynchronously. That is, it
      * needs not emit anything before this method returns, and it may emit on
@@ -80,30 +81,43 @@ public interface StreamEmitter<T> {
      */
     interface EmitCallback<T> extends Consumer<StreamItem<? extends T>> {
         /**
-         * Emit the item to the callback.
+         * Emit the item to the callback. Same as {@code accept(item, false)}.
          *
          * @param item the item to emit.
+         * @see #accept(StreamItem, boolean)
          */
         @Override
-        void accept(StreamItem<? extends T> item);
+        default void accept(StreamItem<? extends T> item) {
+            accept(item, false);
+        }
 
         /**
-         * Emit the {@code item} to the callback, along with a {@link Type#END}
-         * item on the same thread. Item must be {@link Type#VALUE}.
-         * <p>
-         * This method is equivalent to calling {@code
+         * Emit the item to the callback as the last item. Same as
+         * {@code accept(item, true)}.
+         *
+         * @param item the item to emit.
+         * @see #accept(StreamItem, boolean)
+         */
+        default void acceptLast(StreamItem<? extends T> item) {
+            accept(item, true);
+        }
+
+        /**
+         * Emit the {@code item} to the callback. If the item is
+         * {@link Type#VALUE} and {@boolean isLast} is true, then this
+         * method also signals that a {@link Type#END} should be emitted next on
+         * the same thread. In that situation, this method is equivalent to
+         * calling {@code
          *     accept(item);
          *     accept(StreamItem.end());
          * } over two invocations of {@link StreamEmitter#emitOne(EmitCallback)}
-         * but with the benefit of not having to keep extra if the emitter knows
-         * that it has no values left.
+         * but with the benefit of not having to keep extra stat if the emitter
+         * knows that it has no values left.
          *
          * @param item the item to emit.
-         * @param emitEnd if {@code true} also emit an end item.
-         * @throws IllegalArgumentException if {@code item} is not a
-         *             {@code value}.
+         * @param isLast if {@code true} also emit an end item.
          */
-        void acceptLastValue(StreamItem<? extends T> item) throws IllegalArgumentException;
+        void accept(StreamItem<? extends T> item, boolean isLast);
 
         /**
          * Signals to the owner of the callback that the emitter is ready for
@@ -118,5 +132,26 @@ public interface StreamEmitter<T> {
          * @see StreamEmitter#emitOne(EmitCallback)
          */
         void next() throws IllegalStateException;
+
+        default void acceptValue(T value) {
+            acceptValue(value, false);
+        }
+
+        default void acceptLastValue(T value) {
+            acceptValue(value, true);
+        }
+
+        default void acceptValue(T value, boolean isLast) {
+            accept(StreamItem.value(value), isLast);
+        }
+
+        default void acceptError(Throwable error) {
+            accept(StreamItem.error(error));
+        }
+
+        default void acceptEnd() {
+            accept(StreamItem.end());
+        }
+
     }
 }
