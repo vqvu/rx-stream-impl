@@ -1,6 +1,7 @@
 package local.vqvu.rxstream.emitter;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import local.vqvu.rxstream.util.StreamItem;
 
@@ -40,10 +41,13 @@ public class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
         });
     }
 
-    public interface TransformCallback<T, R> {
+    public interface TransformCallback<T, R> extends BiConsumer<StreamItem<? extends T>, EmitCallback<? super R>>{
         /**
-         *
+         * Transform the {@code item} and emit the result to
+         * {@link EmitCallback}. All rules for emitting to a callback specified
+         * in {@link StreamEmitter#emitOne(EmitCallback)} still applies.
          */
+        @Override
         void accept(StreamItem<? extends T> item, EmitCallback<? super R> cb);
     }
 }

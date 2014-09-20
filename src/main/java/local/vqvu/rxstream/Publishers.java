@@ -39,20 +39,14 @@ public class Publishers {
     }
 
     public static <T> SyncPublisher<T> from(final Iterable<? extends T> iterable) {
-        return createSync(new Supplier<SyncStreamEmitter<T>>() {
-            @Override
-            public SyncStreamEmitter<T> get() {
-                return new IteratorEmitter<>(iterable.iterator());
-            }
+        return createSync(() -> {
+            return new IteratorEmitter<>(iterable.iterator());
         });
     }
 
     public static <T> SyncPublisher<T> error(final Throwable err) {
-        return createSync(new Supplier<SyncStreamEmitter<T>>() {
-            @Override
-            public SyncStreamEmitter<T> get() {
-                return new ErrorEmitter<T>(err);
-            }
+        return createSync(() -> {
+            return new ErrorEmitter<T>(err);
         });
     }
 

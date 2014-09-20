@@ -1,6 +1,5 @@
 package local.vqvu.rxstream.emitter;
 
-import local.vqvu.rxstream.util.StreamItem;
 
 /**
  * A {@link StreamEmitter} that immediately emits an error.
@@ -18,6 +17,6 @@ public class ErrorEmitter<T> implements SyncStreamEmitter<T> {
 
     @Override
     public void emitOne(EmitCallback<? super T> cb) {
-        cb.accept(StreamItem.error(error));
+        cb.acceptError(error);
     }
 }
