@@ -3,7 +3,7 @@ package local.vqvu.rxstream.emitter;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 /**
  * A {@code StreamEmitter} is the asynchronous dual of an {@link Iterator}.
@@ -19,22 +19,22 @@ import local.vqvu.rxstream.util.StreamItem;
  *
  * @param <T>
  *
- * @see StreamItem
+ * @see StreamToken
  */
 public interface StreamEmitter<T> {
     /**
-     * Request that the emitter emit one {@link StreamItem} object via the
+     * Request that the emitter emit one {@link StreamToken} object via the
      * callback. This method may be called from any thread and must cause one of
      * the following to eventually happen:
      * <ul>
      * <li>If the emitter is not ready to emit but has more data, call
      * {@link EmitCallback#next()}.
      * <li>If the emitter is ready to emit a value, call
-     * {@link EmitCallback#accept(StreamItem)} with the {@code value} item.
-     * Then, it must call either {@link EmitCallback#accept(StreamItem)} with an
-     * end item or call {@link EmitCallback#next()}.
+     * {@link EmitCallback#accept(StreamToken)} with the {@code value} token.
+     * Then, it must call either {@link EmitCallback#accept(StreamToken)} with
+     * an end token or call {@link EmitCallback#next()}.
      * <li>If the emitter encountered an error, it must call
-     * {@link EmitCallback#accept(StreamItem)} with the error.
+     * {@link EmitCallback#accept(StreamToken)} with the error.
      * </ul>
      * After the emitter has performed one of the above actions, it must not
      * make call any other {@link EmitCallback} methods until this method is
@@ -50,11 +50,11 @@ public interface StreamEmitter<T> {
      * <li>Once this method is called once, it must not be called again until it
      * returns <em>even if it synchronously emits to the callback</em>. Thus,
      * this method need not be reentrant.
-     * <li>Once this method emits an {@code error} or {@code end} item, it must
+     * <li>Once this method emits an {@code error} or {@code end} token, it must
      * not be called again.
      * </ul>
      *
-     * @param cb the callback to push the emitted item to.
+     * @param cb the callback to push the emitted token to.
      */
     void emitOne(EmitCallback<? super T> cb);
 
@@ -76,21 +76,21 @@ public interface StreamEmitter<T> {
      *
      * @param <T>
      */
-    interface EmitCallback<T> extends Consumer<StreamItem<? extends T>> {
+    interface EmitCallback<T> extends Consumer<StreamToken<? extends T>> {
         /**
-         * Emit the item to the callback. Same as {@code accept(item, false)}.
+         * Emit the token to the callback. Same as {@code accept(token, false)}.
          * This method may optionally throw an {@link IllegalStateException} if
          * the {@link StreamEmitter} did not follow the contract outlined in
          * {@link StreamEmitter#emitOne(EmitCallback)}.
          *
-         * @param item the item to emit.
+         * @param token the token to emit.
          * @throws IllegalStateException if this method is called in a way that
          *             violates the contract outlined in
          *             {@link StreamEmitter#emitOne(EmitCallback)}.
          * @see StreamEmitter#emitOne(EmitCallback)
          */
         @Override
-        void accept(StreamItem<? extends T> item) throws IllegalStateException;
+        void accept(StreamToken<? extends T> token) throws IllegalStateException;
 
         /**
          * Signals to the owner of the callback that the emitter is ready for
@@ -107,44 +107,44 @@ public interface StreamEmitter<T> {
         void next() throws IllegalStateException;
 
         /**
-         * Calls {@link #accept(StreamItem)} with the specified value.
+         * Calls {@link #accept(StreamToken)} with the specified value.
          *
          * @param value the value to emit.
          * @throws IllegalStateException if this method is called in a way that
          *             violates the contract outlined in
          *             {@link StreamEmitter#emitOne(EmitCallback)}.
-         * @see {@link #accept(StreamItem)}
+         * @see {@link #accept(StreamToken)}
          * @see StreamEmitter#emitOne(EmitCallback)
          */
         default void acceptValue(T value) throws IllegalStateException {
-            accept(StreamItem.value(value));
+            accept(StreamToken.value(value));
         }
 
         /**
-         * Calls {@link #accept(StreamItem)} with the specified value.
+         * Calls {@link #accept(StreamToken)} with the specified value.
          *
          * @param error the error to emit.
          * @throws IllegalStateException if this method is called in a way that
          *             violates the contract outlined in
          *             {@link StreamEmitter#emitOne(EmitCallback)}.
-         * @see {@link #accept(StreamItem)}
+         * @see {@link #accept(StreamToken)}
          * @see StreamEmitter#emitOne(EmitCallback)
          */
         default void acceptError(Throwable error) throws IllegalStateException {
-            accept(StreamItem.error(error));
+            accept(StreamToken.error(error));
         }
 
         /**
-         * Calls {@link #accept(StreamItem)} with an {@code end} item.
+         * Calls {@link #accept(StreamToken)} with an {@code end} token.
          *
          * @throws IllegalStateException if this method is called in a way that
          *             violates the contract outlined in
          *             {@link StreamEmitter#emitOne(EmitCallback)}.
-         * @see {@link #accept(StreamItem)}
+         * @see {@link #accept(StreamToken)}
          * @see StreamEmitter#emitOne(EmitCallback)
          */
         default void acceptEnd() throws IllegalStateException {
-            accept(StreamItem.end());
+            accept(StreamToken.end());
         }
 
     }

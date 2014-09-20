@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 import local.vqvu.rxstream.Publisher.Operator;
 import local.vqvu.rxstream.emitter.StreamEmitter;
 import local.vqvu.rxstream.emitter.SyncStreamEmitter;
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 
 public class SynchronizeOperator<T> implements Operator<T, T> {
@@ -30,10 +30,10 @@ public class SynchronizeOperator<T> implements Operator<T, T> {
         public void emitOne(EmitCallback<? super T> cb) {
             source.emitOne(new EmitCallback<T>() {
                 @Override
-                public void accept(StreamItem<? extends T> item) {
+                public void accept(StreamToken<? extends T> token) {
                     setAction(() -> {
-                        cb.accept(item);
-                        return !item.isValue();
+                        cb.accept(token);
+                        return !token.isValue();
                     });
                 }
 

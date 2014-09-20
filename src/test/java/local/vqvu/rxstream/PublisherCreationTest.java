@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 import local.vqvu.util.Iterables;
 
 import org.junit.Rule;
@@ -29,8 +29,8 @@ public class PublisherCreationTest {
     public void createErrorWorks() {
         RuntimeException e = new RuntimeException();
         SyncPublisher<Object> pub = Publishers.error(e);
-        assertThat(pub, emits(StreamItem.error(e)));
-        assertThat(pub, emits(StreamItem.error(e)));
+        assertThat(pub, emits(StreamToken.error(e)));
+        assertThat(pub, emits(StreamToken.error(e)));
 
         thrown.expect(RuntimeException.class);
         pub.iterator().hasNext();
@@ -50,7 +50,7 @@ public class PublisherCreationTest {
         List<Integer> expected = Arrays.asList(1, 3, 5, 7);
         SyncPublisher<Integer> pub = Publishers.from(expected.iterator());
         assertThat(pub, emitsValues(expected));
-        assertThat(pub, emits(StreamItem.<Integer>error(new RuntimeException())));
+        assertThat(pub, emits(StreamToken.<Integer>error(new RuntimeException())));
     }
 
     @Test
@@ -129,8 +129,8 @@ public class PublisherCreationTest {
         });
 
         Publisher<Integer> pub = errorPub.concat(Publishers.empty());
-        assertThat(pub, emits(StreamItem.error(e)));
-        assertThat(pub, emits(StreamItem.error(e)));
+        assertThat(pub, emits(StreamToken.error(e)));
+        assertThat(pub, emits(StreamToken.error(e)));
 
         thrown.expect(RuntimeException.class);
         pub.toSynchronousPublisher().iterator().hasNext();
@@ -140,8 +140,8 @@ public class PublisherCreationTest {
     public void concatHandlesErrors2() {
         RuntimeException e = new RuntimeException();
         Publisher<Object> pub = Publishers.empty().concat(Publishers.error(e));
-        assertThat(pub, emits(StreamItem.error(e)));
-        assertThat(pub, emits(StreamItem.error(e)));
+        assertThat(pub, emits(StreamToken.error(e)));
+        assertThat(pub, emits(StreamToken.error(e)));
 
         thrown.expect(RuntimeException.class);
         pub.toSynchronousPublisher().iterator().hasNext();
@@ -198,7 +198,7 @@ public class PublisherCreationTest {
     @Test
     public void thereShouldBeNoRecursion() {
         Publishers.<Integer>createSync(() -> {
-            return (cb) -> { cb.accept(StreamItem.value(0)); };
+            return (cb) -> { cb.accept(StreamToken.value(0)); };
         }).subscribe(new Subscriber<Integer>() {
             Subscription sub;
             int count;

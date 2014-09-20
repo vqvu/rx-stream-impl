@@ -4,7 +4,7 @@ import local.vqvu.rxstream.Publisher;
 import local.vqvu.rxstream.Publisher.Operator;
 import local.vqvu.rxstream.emitter.StreamEmitter;
 import local.vqvu.rxstream.exception.StreamEmitterException;
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
     @Override
@@ -31,7 +31,7 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
             synchronized (lock) {
                 if (endReached && childSource == null) {
                     Throwable err = new StreamEmitterException("Emitter already reached the end.");
-                    cb.accept(StreamItem.error(err));
+                    cb.accept(StreamToken.error(err));
                     return;
                 }
 
@@ -45,7 +45,7 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
 
         /**
          * Attempt to pull the next child source, and if successful, attempt to
-         * emit the next item. This method should only be called when the lock
+         * emit the next token. This method should only be called when the lock
          * is held and {@code childSource} is {@code null}.
          *
          * @param cb a callback
@@ -53,17 +53,17 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
         private void pullChildSourceAndEmit(EmitCallback<? super T> cb) {
             parentSource.emitOne(new EmitCallback<Publisher<? extends T>>() {
                 @Override
-                public void accept(StreamItem<? extends Publisher<? extends T>> item) {
+                public void accept(StreamToken<? extends Publisher<? extends T>> token) {
                     synchronized(lock) {
-                        if (!item.isValue()) {
+                        if (!token.isValue()) {
                             endReached = true;
-                            if (item.isError() || childSource == null) {
-                                cb.accept(item.safeCast());
+                            if (token.isError() || childSource == null) {
+                                cb.accept(token.safeCast());
                             } else {
                                 emitNext(cb);
                             }
                         } else {
-                            Publisher<? extends T> pub = item.unwrap();
+                            Publisher<? extends T> pub = token.unwrap();
                             if (pub != null) {
                                 childSource = pub.createEmitter();
                             }
@@ -93,17 +93,17 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
             synchronized (lock) {
                 childSource.emitOne(new EmitCallback<T>() {
                     @Override
-                    public void accept(StreamItem<? extends T> item) {
+                    public void accept(StreamToken<? extends T> token) {
                         synchronized (lock) {
-                            if (!item.isValue()) {
+                            if (!token.isValue()) {
                                 childSource = null;
-                                if (endReached || item.isError()) {
-                                    cb.accept(item);
+                                if (endReached || token.isError()) {
+                                    cb.accept(token);
                                 } else {
                                     next();
                                 }
                             } else {
-                                cb.accept(item);
+                                cb.accept(token);
                             }
                         }
                     }

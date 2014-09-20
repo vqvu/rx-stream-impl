@@ -3,7 +3,7 @@ package local.vqvu.rxstream.emitter;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 
 public class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
@@ -18,36 +18,36 @@ public class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
     @Override
     public void emitOne(EmitCallback<? super R> cb) {
         source.emitOne(new EmitCallback<T>() {
-            AtomicReference<StreamItem<? extends T>> item = new AtomicReference<>(null);
+            AtomicReference<StreamToken<? extends T>> token = new AtomicReference<>(null);
 
             @Override
-            public void accept(StreamItem<? extends T> item) {
-                if (item.isValue()) {
-                    this.item.set(item);
+            public void accept(StreamToken<? extends T> token) {
+                if (token.isValue()) {
+                    this.token.set(token);
                 } else {
-                    consumeCb.accept(item, cb);
+                    consumeCb.accept(token, cb);
                 }
             }
 
             @Override
             public void next() throws IllegalStateException {
-                StreamItem<? extends T> item = this.item.getAndSet(null);
-                if (item == null) {
+                StreamToken<? extends T> token = this.token.getAndSet(null);
+                if (token == null) {
                     cb.next();
                 } else {
-                    consumeCb.accept(item, cb);
+                    consumeCb.accept(token, cb);
                 }
             }
         });
     }
 
-    public interface TransformCallback<T, R> extends BiConsumer<StreamItem<? extends T>, EmitCallback<? super R>>{
+    public interface TransformCallback<T, R> extends BiConsumer<StreamToken<? extends T>, EmitCallback<? super R>>{
         /**
-         * Transform the {@code item} and emit the result to
+         * Transform the {@code token} and emit the result to
          * {@link EmitCallback}. All rules for emitting to a callback specified
          * in {@link StreamEmitter#emitOne(EmitCallback)} still applies.
          */
         @Override
-        void accept(StreamItem<? extends T> item, EmitCallback<? super R> cb);
+        void accept(StreamToken<? extends T> token, EmitCallback<? super R> cb);
     }
 }

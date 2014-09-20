@@ -4,19 +4,19 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 
 public abstract class AsyncEmitterMatcher<E, T> extends TypeSafeMatcher<E> {
-    private final List<StreamItem<T>> expected;
-    private final List<StreamItem<T>> actual;
+    private final List<StreamToken<T>> expected;
+    private final List<StreamToken<T>> actual;
 
     private boolean done;
     private final Object lock;
 
-    public AsyncEmitterMatcher(Class<?> expectedType, List<StreamItem<T>> expected) {
+    public AsyncEmitterMatcher(Class<?> expectedType, List<StreamToken<T>> expected) {
         super(expectedType);
 
         this.expected = expected;
@@ -25,7 +25,7 @@ public abstract class AsyncEmitterMatcher<E, T> extends TypeSafeMatcher<E> {
         this.lock = this;
 
         if (expected.isEmpty() || expected.get(expected.size() - 1).isValue()) {
-            expected.add(StreamItem.end());
+            expected.add(StreamToken.end());
         }
     }
 
@@ -35,14 +35,14 @@ public abstract class AsyncEmitterMatcher<E, T> extends TypeSafeMatcher<E> {
     }
 
     @Override
-    protected boolean matchesSafely(E item) {
+    protected boolean matchesSafely(E token) {
         reset();
-        computeActuals(item);
+        computeActuals(token);
         waitForDone();
         return matches();
     }
 
-    protected abstract void computeActuals(E item);
+    protected abstract void computeActuals(E token);
 
     private void reset() {
         synchronized (lock) {
@@ -66,18 +66,18 @@ public abstract class AsyncEmitterMatcher<E, T> extends TypeSafeMatcher<E> {
         if (expected.size() != actual.size())
             return false;
 
-        Iterator<StreamItem<T>> expectedIter = expected.iterator();
-        Iterator<StreamItem<T>> actualIter = actual.iterator();
+        Iterator<StreamToken<T>> expectedIter = expected.iterator();
+        Iterator<StreamToken<T>> actualIter = actual.iterator();
 
         while (expectedIter.hasNext() && actualIter.hasNext()) {
-            StreamItem<T> expectedItem = expectedIter.next();
-            StreamItem<T> actualItem = actualIter.next();
+            StreamToken<T> expectedToken = expectedIter.next();
+            StreamToken<T> actualToken = actualIter.next();
 
-            if (expectedItem.isError() && actualItem.isError()) {
+            if (expectedToken.isError() && actualToken.isError()) {
                 return true;
             }
 
-            if (!expectedItem.equals(actualItem)) {
+            if (!expectedToken.equals(actualToken)) {
                 return false;
             }
         }
@@ -86,17 +86,17 @@ public abstract class AsyncEmitterMatcher<E, T> extends TypeSafeMatcher<E> {
     }
 
     @Override
-    protected void describeMismatchSafely(E item, Description mismatchDescription) {
+    protected void describeMismatchSafely(E token, Description mismatchDescription) {
         if (done) {
             mismatchDescription.appendText("was ").appendValue(actual);
         }
     }
 
-    protected void add(StreamItem<T> item) {
+    protected void add(StreamToken<T> token) {
         synchronized (lock) {
-            actual.add(item);
+            actual.add(token);
 
-            if (!item.isValue()) {
+            if (!token.isValue()) {
                 done = true;
                 lock.notifyAll();
             }
@@ -104,14 +104,14 @@ public abstract class AsyncEmitterMatcher<E, T> extends TypeSafeMatcher<E> {
     }
 
     protected void addValue(T value) {
-        add(StreamItem.value(value));
+        add(StreamToken.value(value));
     }
 
     protected void addError(Throwable error) {
-        add(StreamItem.error(error));
+        add(StreamToken.error(error));
     }
 
     protected void addEnd() {
-        add(StreamItem.end());
+        add(StreamToken.end());
     }
 }

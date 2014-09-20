@@ -8,7 +8,7 @@ import local.vqvu.rxstream.emitter.StreamEmitter;
 import local.vqvu.rxstream.emitter.StreamEmitter.EmitCallback;
 import local.vqvu.rxstream.emitter.TransformingStreamEmitter;
 import local.vqvu.rxstream.emitter.TransformingStreamEmitter.TransformCallback;
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 public class BufferOperator<T> implements Operator<T,List<T>> {
     private final int bufferSize;
@@ -33,24 +33,24 @@ public class BufferOperator<T> implements Operator<T,List<T>> {
         }
 
         @Override
-        public void accept(StreamItem<? extends T> item,
+        public void accept(StreamToken<? extends T> token,
                 EmitCallback<? super List<T>> cb) {
             synchronized (lock) {
-                if (item.isValue()) {
+                if (token.isValue()) {
                     if (buffer == null) {
                         buffer = new ArrayList<>();
                     }
 
-                    buffer.add(item.unwrap());
+                    buffer.add(token.unwrap());
 
                     if (buffer.size() == bufferSize) {
                         cb.acceptValue(buffer);
                         buffer = null;
                     }
                     cb.next();
-                } else if (item.isError()) {
+                } else if (token.isError()) {
                     buffer = null;
-                    cb.accept(item.safeCast());
+                    cb.accept(token.safeCast());
                 } else {
                     if (buffer != null) {
                         cb.acceptValue(buffer);

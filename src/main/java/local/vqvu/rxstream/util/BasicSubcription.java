@@ -28,7 +28,7 @@ public class BasicSubcription<T> implements Subscription {
                 + "must be positive. Actual: %d";
             String msg = String.format(format, num);
             Throwable err = new IllegalArgumentException(msg);
-            emit(StreamItem.<T>error(err));
+            emit(StreamToken.<T>error(err));
             return;
         }
 
@@ -37,7 +37,7 @@ public class BasicSubcription<T> implements Subscription {
                 + "Current pending: %d, additional request: %d";
             String msg = String.format(format, Long.MAX_VALUE, numRequests, num);
             Throwable err = new IllegalStateException(msg);
-            emit(StreamItem.<T>error(err));
+            emit(StreamToken.<T>error(err));
             return;
         }
 
@@ -52,15 +52,15 @@ public class BasicSubcription<T> implements Subscription {
         trampoline.stop();
     }
 
-    private void emit(StreamItem<? extends T> item) {
+    private void emit(StreamToken<? extends T> token) {
         long numPending = numRequests.decrementAndGet();
 
-        // Immediately pause the trampoline, since the next call to item#emit
-        // may cause a resume by calling #request().
+        // Immediately pause the trampoline, since the next call to
+        // StreamToken#emit may cause a resume by calling #request().
         if (numPending <= 0) {
             trampoline.pause();
         }
 
-        item.emit(subscription);
+        token.emit(subscription);
     }
 }

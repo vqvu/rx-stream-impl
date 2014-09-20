@@ -5,13 +5,13 @@ import java.util.Arrays;
 import java.util.List;
 
 import local.vqvu.rxstream.Publisher;
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 public class Emits<T> extends AsyncEmitterMatcher<Publisher<T>, T> {
-    public Emits(List<StreamItem<T>> expected) {
+    public Emits(List<StreamToken<T>> expected) {
         super(Publisher.class, expected);
     }
 
@@ -54,19 +54,19 @@ public class Emits<T> extends AsyncEmitterMatcher<Publisher<T>, T> {
     }
 
     public static <T> Emits<T> emitsValues(List<T> vals) {
-        List<StreamItem<T>> items = new ArrayList<>();
+        List<StreamToken<T>> tokens = new ArrayList<>();
         for (T val : vals) {
-            items.add(StreamItem.value(val));
+            tokens.add(StreamToken.value(val));
         }
-        return emits(items);
+        return emits(tokens);
     }
 
     @SafeVarargs
-    public static <T> Emits<T> emits(StreamItem<T>...items) {
-        return emits(Arrays.asList(items));
+    public static <T> Emits<T> emits(StreamToken<T>...tokens) {
+        return emits(Arrays.asList(tokens));
     }
 
-    public static <T> Emits<T> emits(List<StreamItem<T>> items) {
-        return new Emits<T>(items);
+    public static <T> Emits<T> emits(List<StreamToken<T>> tokens) {
+        return new Emits<T>(tokens);
     }
 }

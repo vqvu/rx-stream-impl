@@ -8,7 +8,7 @@ import local.vqvu.rxstream.emitter.StreamEmitter.EmitCallback;
 
 public class Trampoline<T> {
     private final StreamEmitter<? extends T> emitter;
-    private final Consumer<StreamItem<? extends T>> consumer;
+    private final Consumer<StreamToken<? extends T>> consumer;
 
     private boolean done;
     private boolean paused;
@@ -18,7 +18,7 @@ public class Trampoline<T> {
     private final Object lock;
 
     public Trampoline(StreamEmitter<? extends T> emitter,
-                    Consumer<StreamItem<? extends T>> consumer) {
+                    Consumer<StreamToken<? extends T>> consumer) {
         this.emitter = emitter;
         this.consumer = consumer;
 
@@ -56,7 +56,7 @@ public class Trampoline<T> {
 
     /**
      * Pause emitting if the loop is currently emitting. The pause may not be
-     * immediate. The loop may emit one more item after this call returns if it
+     * immediate. The loop may emit one more token after this call returns if it
      * was already in the process of emitting.
      */
     public void pause() {
@@ -79,7 +79,7 @@ public class Trampoline<T> {
 
     /**
      * Signals that the {@link EmitCallback} has completed and this loop may
-     * attempt to emit the next item.
+     * attempt to emit the next token.
      */
     private void next() {
         synchronized (lock) {
@@ -89,16 +89,16 @@ public class Trampoline<T> {
         }
     }
 
-    private void emit(StreamItem<? extends T> item) {
+    private void emit(StreamToken<? extends T> token) {
         synchronized (lock) {
             if (done) {
                 return;
             }
 
             waitingOnEmit = false;
-            consumer.accept(item);
+            consumer.accept(token);
 
-            if (!item.isValue()) {
+            if (!token.isValue()) {
                 stop();
             }
         }
@@ -122,9 +122,9 @@ public class Trampoline<T> {
         }
 
         @Override
-        public void accept(StreamItem<? extends T> item) throws IllegalStateException {
-            checkNotUsed(item.isValue() ? STATE_SEEN_VALUE : STATE_SEEN_END_OR_NEXT, "accept");
-            emit(item);
+        public void accept(StreamToken<? extends T> token) throws IllegalStateException {
+            checkNotUsed(token.isValue() ? STATE_SEEN_VALUE : STATE_SEEN_END_OR_NEXT, "accept");
+            emit(token);
         }
 
         @Override

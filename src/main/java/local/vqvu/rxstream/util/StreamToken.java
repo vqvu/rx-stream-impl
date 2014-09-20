@@ -1,90 +1,92 @@
 package local.vqvu.rxstream.util;
 
-import local.vqvu.rxstream.exception.EmitterItemException;
+import local.vqvu.rxstream.exception.EmitterTokenException;
 
 import org.reactivestreams.Subscriber;
 
-public abstract class StreamItem<T> {
-    private StreamItem() {
+public abstract class StreamToken<T> {
+    private StreamToken() {
     }
 
-    /** Returns {@code true} if this is a {@code value} item. */
+    /** Returns {@code true} if this is a {@code value} token. */
     public boolean isValue() {
-        return this instanceof ValueStreamItem;
+        return this instanceof ValueStreamToken;
     }
 
-    /** Returns {@code true} if this is an {@code error} item. */
+    /** Returns {@code true} if this is an {@code error} token. */
     public boolean isError() {
-        return this instanceof ErrorStreamItem;
+        return this instanceof ErrorStreamToken;
     }
 
-    /** Returns {@code true} if this is an {@code end} item. */
+    /** Returns {@code true} if this is an {@code end} token. */
     public boolean isEnd() {
-        return this instanceof EndStreamItem;
+        return this instanceof EndStreamToken;
     }
 
     /**
-     * Emits this item to the specified {@link Subscriber}.
+     * Emits the wrapped value of this token to the specified
+     * {@link Subscriber}.
+     *
      * @param sub the subscriber to emit to.
      */
     public abstract void emit(Subscriber<? super T> sub);
 
     /**
-     * Casts this item to a {@code StreamItem<S>} if this is an error or end
-     * item. This method throws a {@link ClassCastException} otherwise. Note
+     * Casts this token to a {@code StreamToken<S>} if this is an error or end
+     * token. This method throws a {@link ClassCastException} otherwise. Note
      * that this method will always throw an exception for values even if
      * {@code S} is a superclass of {@code T}. To do that cast, use
-     * {@link #safeCast(StreamItem)}.
+     * {@link #safeCast(StreamToken)}.
      *
-     * @return this item, casted to the appropriate type.
-     * @throws ClassCastException if this is a value item.
+     * @return this token, casted to the appropriate type.
+     * @throws ClassCastException if this is a value token.
      */
-    public abstract <S> StreamItem<S> safeCast() throws ClassCastException;
+    public abstract <S> StreamToken<S> safeCast() throws ClassCastException;
 
     /**
-     * Unwrap this {@link StreamItem} and return its underlying value. If the
-     * item is not a value, throw an exception.
+     * Unwrap this {@link StreamToken} and return its underlying value. If the
+     * token is not a value, throw an exception.
      *
      * @return the unwrapped value.
      */
     public abstract T unwrap();
 
     /**
-     * Returns a {@code value} item that wraps the given value.
+     * Returns a {@code value} token that wraps the given value.
      *
      * @param val the value to wrap.
      */
-    public static <T> ValueStreamItem<T> value(T val) {
-        return new ValueStreamItem<T>(val);
+    public static <T> ValueStreamToken<T> value(T val) {
+        return new ValueStreamToken<T>(val);
     }
 
     /**
-     * Returns an {@code error} item that wraps the given {@link Throwable}.
+     * Returns an {@code error} token that wraps the given {@link Throwable}.
      *
      * @param t the error to wrap.
      * @throws NullPointerException if {@code t} is {@code null}.
      */
-    public static <T> ErrorStreamItem<T> error(Throwable t) throws NullPointerException {
-        return new ErrorStreamItem<T>(t);
+    public static <T> ErrorStreamToken<T> error(Throwable t) throws NullPointerException {
+        return new ErrorStreamToken<T>(t);
     }
 
     /**
-     * Returns an {@code end} item.
+     * Returns an {@code end} token.
      */
-    public static <T> EndStreamItem<T> end() {
-        return new EndStreamItem<T>();
+    public static <T> EndStreamToken<T> end() {
+        return new EndStreamToken<T>();
     }
 
     /**
-     * Safely cast the specified {@link StreamItem} to the type {@code T}.
+     * Safely cast the specified {@link StreamToken} to the type {@code T}.
      * Unlike, {@link #safeCast()}, this method always succeed.
      *
-     * @param item the item to cast.
-     * @return the same item, casted to the appropriate type.
+     * @param token the token to cast.
+     * @return the same token, casted to the appropriate type.
      */
     @SuppressWarnings("unchecked")
-    public static <T> StreamItem<T> safeCast(StreamItem<? extends T> item) {
-        return (StreamItem<T>) item;
+    public static <T> StreamToken<T> safeCast(StreamToken<? extends T> token) {
+        return (StreamToken<T>) token;
     }
 
     /**
@@ -93,7 +95,7 @@ public abstract class StreamItem<T> {
      * return anything. The declared return value is to enable the following
      * call
      * <pre>
-     * throw StreamItem.exception(error);
+     * throw StreamToken.exception(error);
      * </pre>
      *
      * @param t the {@link Throwable} to throw.
@@ -108,10 +110,10 @@ public abstract class StreamItem<T> {
         }
     }
 
-    public static final class ValueStreamItem<T> extends StreamItem<T> {
+    public static final class ValueStreamToken<T> extends StreamToken<T> {
         private final T value;
 
-        private ValueStreamItem(T value) {
+        private ValueStreamToken(T value) {
             this.value = value;
         }
 
@@ -121,7 +123,7 @@ public abstract class StreamItem<T> {
         }
 
         @Override
-        public <S> StreamItem<S> safeCast() throws ClassCastException {
+        public <S> StreamToken<S> safeCast() throws ClassCastException {
             throw new ClassCastException();
         }
 
@@ -142,10 +144,10 @@ public abstract class StreamItem<T> {
         public boolean equals(Object obj) {
             if (this == obj)
                 return true;
-            if (!(obj instanceof ValueStreamItem))
+            if (!(obj instanceof ValueStreamToken))
                 return false;
 
-            ValueStreamItem<?> other = (ValueStreamItem<?>) obj;
+            ValueStreamToken<?> other = (ValueStreamToken<?>) obj;
             if ((value == null) != (other.value == null))
                 return false;
             if (value != null)
@@ -159,10 +161,10 @@ public abstract class StreamItem<T> {
         }
     }
 
-    public static final class ErrorStreamItem<T> extends StreamItem<T> {
+    public static final class ErrorStreamToken<T> extends StreamToken<T> {
         private final Throwable error;
 
-        private ErrorStreamItem(Throwable error) {
+        private ErrorStreamToken(Throwable error) {
             if (error == null) {
                 throw new NullPointerException();
             }
@@ -181,8 +183,8 @@ public abstract class StreamItem<T> {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <S> ErrorStreamItem<S> safeCast() {
-            return (ErrorStreamItem<S>) this;
+        public <S> ErrorStreamToken<S> safeCast() {
+            return (ErrorStreamToken<S>) this;
         }
 
         @Override
@@ -201,10 +203,10 @@ public abstract class StreamItem<T> {
                 return true;
             }
 
-            if (!(obj instanceof ErrorStreamItem)) {
+            if (!(obj instanceof ErrorStreamToken)) {
                 return false;
             }
-            ErrorStreamItem<?> other = (ErrorStreamItem<?>) obj;
+            ErrorStreamToken<?> other = (ErrorStreamToken<?>) obj;
             return error.equals(other.error);
         }
 
@@ -214,8 +216,8 @@ public abstract class StreamItem<T> {
         }
     }
 
-    public static final class EndStreamItem<T> extends StreamItem<T> {
-        private EndStreamItem() {
+    public static final class EndStreamToken<T> extends StreamToken<T> {
+        private EndStreamToken() {
         }
 
         @Override
@@ -225,13 +227,13 @@ public abstract class StreamItem<T> {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <S> EndStreamItem<S> safeCast() {
-            return (EndStreamItem<S>) this;
+        public <S> EndStreamToken<S> safeCast() {
+            return (EndStreamToken<S>) this;
         }
 
         @Override
         public T unwrap() {
-            throw new EmitterItemException("Attempted to unwrap an end item.");
+            throw new EmitterTokenException("Attempted to unwrap an end token.");
         }
 
         @Override
@@ -241,7 +243,7 @@ public abstract class StreamItem<T> {
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof EndStreamItem;
+            return obj instanceof EndStreamToken;
         }
 
         @Override

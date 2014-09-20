@@ -7,7 +7,7 @@ import local.vqvu.rxstream.emitter.StreamEmitter;
 import local.vqvu.rxstream.emitter.StreamEmitter.EmitCallback;
 import local.vqvu.rxstream.emitter.TransformingStreamEmitter;
 import local.vqvu.rxstream.emitter.TransformingStreamEmitter.TransformCallback;
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 public final class MapOperator<T, R> implements Operator<T, R> {
     private final Function<? super T, ? extends R> mapper;
@@ -24,16 +24,16 @@ public final class MapOperator<T, R> implements Operator<T, R> {
     private class Callback implements TransformCallback<T, R> {
 
         @Override
-        public void accept(StreamItem<? extends T> item, EmitCallback<? super R> cb) {
-            cb.accept(map(item));
+        public void accept(StreamToken<? extends T> token, EmitCallback<? super R> cb) {
+            cb.accept(map(token));
         }
 
-        private StreamItem<R> map(StreamItem<? extends T> item) {
-            if (!item.isValue()) {
-                return item.safeCast();
+        private StreamToken<R> map(StreamToken<? extends T> token) {
+            if (!token.isValue()) {
+                return token.safeCast();
             }
 
-            T val = item.unwrap();
+            T val = token.unwrap();
             R mappedValue = null;
             Throwable error = null;
 
@@ -44,9 +44,9 @@ public final class MapOperator<T, R> implements Operator<T, R> {
             }
 
             if (error != null) {
-                return StreamItem.error(error);
+                return StreamToken.error(error);
             } else {
-                return StreamItem.value(mappedValue);
+                return StreamToken.value(mappedValue);
             }
         }
     }

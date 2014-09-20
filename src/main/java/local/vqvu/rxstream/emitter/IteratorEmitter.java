@@ -2,7 +2,7 @@ package local.vqvu.rxstream.emitter;
 
 import java.util.Iterator;
 
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 /**
  * A {@link StreamEmitter} backed by an {@link Iterator}.
@@ -20,19 +20,19 @@ public class IteratorEmitter<T> implements SyncStreamEmitter<T> {
 
     @Override
     public void emitOne(EmitCallback<? super T> cb) {
-        StreamItem<T> item;
+        StreamToken<T> token;
         if (delegate.hasNext()) {
             try {
-                item = StreamItem.<T>value(delegate.next());
+                token = StreamToken.<T>value(delegate.next());
             } catch (RuntimeException e) {
-                item = StreamItem.error(e);
+                token = StreamToken.error(e);
             }
         } else {
-            item = StreamItem.end();
+            token = StreamToken.end();
         }
-        cb.accept(item);
+        cb.accept(token);
 
-        if (item.isValue()) {
+        if (token.isValue()) {
             cb.next();
         }
     }

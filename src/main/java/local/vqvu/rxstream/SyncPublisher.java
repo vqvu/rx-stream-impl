@@ -5,7 +5,7 @@ import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
 import local.vqvu.rxstream.emitter.SyncStreamEmitter;
-import local.vqvu.rxstream.util.StreamItem;
+import local.vqvu.rxstream.util.StreamToken;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -81,7 +81,7 @@ public class SyncPublisher<T> extends Publisher<T> implements Iterable<T> {
         @Override
         public void onError(Throwable t) {
             done = true;
-            throw StreamItem.exception(t);
+            throw StreamToken.exception(t);
         }
 
         @Override
