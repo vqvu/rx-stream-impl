@@ -29,13 +29,13 @@ public class SyncPublisher<T> extends Publisher<T> implements Iterable<T> {
         private Subscription sub;
 
         private T nextValue;
-        private StreamItem<T> terminatingValue;
+        private boolean done;
 
         public It() {
             this.sub = null;
 
             this.nextValue = null;
-            this.terminatingValue = null;
+            this.done = false;
 
             subscribe(this);
         }
@@ -47,24 +47,13 @@ public class SyncPublisher<T> extends Publisher<T> implements Iterable<T> {
         }
 
         private void ensureNextValue() {
-            if (nextValue == null && terminatingValue == null) {
+            if (nextValue == null && !done) {
                 sub.request(1);
             }
         }
 
         private boolean checkHasNext() {
-            if (nextValue != null)
-                return true;
-
-            switch (terminatingValue.getType()) {
-            case END:
-                return false;
-            case ERROR:
-                terminatingValue.throwIfError();
-                // Fall through.
-            default:
-                throw new RuntimeException("Control should not get here.");
-            }
+            return (nextValue != null);
         }
 
         @Override
@@ -91,12 +80,13 @@ public class SyncPublisher<T> extends Publisher<T> implements Iterable<T> {
 
         @Override
         public void onError(Throwable t) {
-            terminatingValue = StreamItem.error(t);
+            done = true;
+            throw StreamItem.exception(t);
         }
 
         @Override
         public void onComplete() {
-            terminatingValue = StreamItem.end();
+            done = true;
         }
     }
 }

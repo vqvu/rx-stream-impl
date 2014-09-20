@@ -73,12 +73,8 @@ public abstract class AsyncEmitterMatcher<E, T> extends TypeSafeMatcher<E> {
             StreamItem<T> expectedItem = expectedIter.next();
             StreamItem<T> actualItem = actualIter.next();
 
-            if (expectedItem.isError() && expectedItem.getError() == null) {
-                if (actualItem.isError()) {
-                    continue;
-                } else {
-                    return false;
-                }
+            if (expectedItem.isError() && actualItem.isError()) {
+                return true;
             }
 
             if (!expectedItem.equals(actualItem)) {

@@ -58,12 +58,12 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
                         if (!item.isValue()) {
                             endReached = true;
                             if (item.isError() || childSource == null) {
-                                cb.accept(item.castIfNotValue());
+                                cb.accept(item.safeCast());
                             } else {
                                 emitNext(cb);
                             }
                         } else {
-                            Publisher<? extends T> pub = item.getValue();
+                            Publisher<? extends T> pub = item.unwrap();
                             if (pub != null) {
                                 childSource = pub.createEmitter();
                             }

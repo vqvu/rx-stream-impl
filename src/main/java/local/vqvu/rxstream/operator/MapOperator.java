@@ -30,10 +30,10 @@ public final class MapOperator<T, R> implements Operator<T, R> {
 
         private StreamItem<R> map(StreamItem<? extends T> item) {
             if (!item.isValue()) {
-                return item.castIfNotValue();
+                return item.safeCast();
             }
 
-            T val = item.getValue();
+            T val = item.unwrap();
             R mappedValue = null;
             Throwable error = null;
 

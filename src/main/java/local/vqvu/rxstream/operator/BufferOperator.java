@@ -41,7 +41,7 @@ public class BufferOperator<T> implements Operator<T,List<T>> {
                         buffer = new ArrayList<>();
                     }
 
-                    buffer.add(item.getValue());
+                    buffer.add(item.unwrap());
 
                     if (buffer.size() == bufferSize) {
                         cb.acceptValue(buffer);
@@ -50,7 +50,7 @@ public class BufferOperator<T> implements Operator<T,List<T>> {
                     cb.next();
                 } else if (item.isError()) {
                     buffer = null;
-                    cb.accept(item.castIfNotValue());
+                    cb.accept(item.safeCast());
                 } else {
                     if (buffer != null) {
                         cb.acceptValue(buffer);

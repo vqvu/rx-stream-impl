@@ -50,7 +50,7 @@ public class PublisherCreationTest {
         List<Integer> expected = Arrays.asList(1, 3, 5, 7);
         SyncPublisher<Integer> pub = Publishers.from(expected.iterator());
         assertThat(pub, emitsValues(expected));
-        assertThat(pub, emits(StreamItem.<Integer>error(null)));
+        assertThat(pub, emits(StreamItem.<Integer>error(new RuntimeException())));
     }
 
     @Test

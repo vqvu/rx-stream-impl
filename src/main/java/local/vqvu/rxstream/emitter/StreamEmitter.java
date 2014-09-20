@@ -4,7 +4,6 @@ import java.util.Iterator;
 import java.util.function.Consumer;
 
 import local.vqvu.rxstream.util.StreamItem;
-import local.vqvu.rxstream.util.StreamItem.Type;
 
 /**
  * A {@code StreamEmitter} is the asynchronous dual of an {@link Iterator}.
@@ -51,8 +50,8 @@ public interface StreamEmitter<T> {
      * <li>Once this method is called once, it must not be called again until it
      * returns <em>even if it synchronously emits to the callback</em>. Thus,
      * this method need not be reentrant.
-     * <li>Once this method emits an item with {@link Type#ERROR} or
-     * {@link Type#END}, it must not be called again.
+     * <li>Once this method emits an {@code error} or {@code end} item, it must
+     * not be called again.
      * </ul>
      *
      * @param cb the callback to push the emitted item to.
@@ -136,7 +135,7 @@ public interface StreamEmitter<T> {
         }
 
         /**
-         * Calls {@link #accept(StreamItem)} with an {@link Type#END} item.
+         * Calls {@link #accept(StreamItem)} with an {@code end} item.
          *
          * @throws IllegalStateException if this method is called in a way that
          *             violates the contract outlined in
