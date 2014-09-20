@@ -24,12 +24,8 @@ public final class MapOperator<T, R> implements Operator<T, R> {
     private class Callback implements TransformCallback<T, R> {
 
         @Override
-        public void accept(StreamItem<? extends T> item, boolean isLast, EmitCallback<? super R> cb) {
-            if (isLast) {
-                cb.acceptLast(map(item));
-            } else {
-                cb.accept(map(item));
-            }
+        public void accept(StreamItem<? extends T> item, EmitCallback<? super R> cb) {
+            cb.accept(map(item));
         }
 
         private StreamItem<R> map(StreamItem<? extends T> item) {

@@ -30,10 +30,10 @@ public class SynchronizeOperator<T> implements Operator<T, T> {
         public void emitOne(EmitCallback<? super T> cb) {
             source.emitOne(new EmitCallback<T>() {
                 @Override
-                public void accept(StreamItem<? extends T> item, boolean isLast) {
+                public void accept(StreamItem<? extends T> item) {
                     setAction(() -> {
-                        cb.accept(item, isLast);
-                        return !item.isValue() || isLast;
+                        cb.accept(item);
+                        return !item.isValue();
                     });
                 }
 

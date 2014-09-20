@@ -20,11 +20,11 @@ public class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
             AtomicReference<StreamItem<? extends T>> item = new AtomicReference<>(null);
 
             @Override
-            public void accept(StreamItem<? extends T> item, boolean isLast) {
-                if (item.isValue() && !isLast) {
+            public void accept(StreamItem<? extends T> item) {
+                if (item.isValue()) {
                     this.item.set(item);
                 } else {
-                    consumeCb.accept(item, isLast, cb);
+                    consumeCb.accept(item, cb);
                 }
             }
 
@@ -34,7 +34,7 @@ public class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
                 if (item == null) {
                     cb.next();
                 } else {
-                    consumeCb.accept(item, false, cb);
+                    consumeCb.accept(item, cb);
                 }
             }
         });
@@ -44,6 +44,6 @@ public class TransformingStreamEmitter<T, R> implements StreamEmitter<R> {
         /**
          *
          */
-        void accept(StreamItem<? extends T> item, boolean isLast, EmitCallback<? super R> cb);
+        void accept(StreamItem<? extends T> item, EmitCallback<? super R> cb);
     }
 }

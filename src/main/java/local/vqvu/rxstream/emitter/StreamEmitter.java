@@ -25,25 +25,23 @@ import local.vqvu.rxstream.util.StreamItem.Type;
 public interface StreamEmitter<T> {
     /**
      * Request that the emitter emit one {@link StreamItem} object via the
-     * callback. This method may be called from any thread and must eventually
-     * do one of the following:
+     * callback. This method may be called from any thread and must cause one of
+     * the following to eventually happen:
      * <ul>
      * <li>If the emitter is not ready to emit but has more data, call
      * {@link EmitCallback#next()}.
-     * <li>If the emitter knows that it has exactly one value left and is ready
-     * to emit that value, call {@link EmitCallback#accept(StreamItem, boolean)}
-     * with the {@code value} item.
-     * <li>If the emitter is ready to emit a value (and knows nothing about the
-     * rest of the stream), call {@link EmitCallback#accept(StreamItem)} with
-     * the {@code value} item and followed by {@link EmitCallback#next()}.
-     * <li>If the emitter has no values left or has encountered an error, call
-     * {@link EmitCallback#accept(StreamItem)} with the {@code error} or
-     * {@code end} item. The emitter may also call
-     * {@link EmitCallback#acceptLast(StreamItem)} instead.
+     * <li>If the emitter is ready to emit a value, call
+     * {@link EmitCallback#accept(StreamItem)} with the {@code value} item.
+     * Then, it must call either {@link EmitCallback#accept(StreamItem)} with an
+     * end item or call {@link EmitCallback#next()}.
+     * <li>If the emitter encountered an error, it must call
+     * {@link EmitCallback#accept(StreamItem)} with the error.
      * </ul>
-     * The emitter may perform the above actions asynchronously. That is, it
-     * needs not emit anything before this method returns, and it may emit on
-     * any thread (not just the calling thread).
+     * After the emitter has performed one of the above actions, it must not
+     * make call any other {@link EmitCallback} methods until this method is
+     * called again. However, the emitter may perform the above actions
+     * asynchronously. That is, it needs not emit anything before this method
+     * returns, and it may emit on any thread (not just the calling thread).
      * <p>
      * The caller of this method is required to ensure the following:
      * <ul>
@@ -82,42 +80,18 @@ public interface StreamEmitter<T> {
     interface EmitCallback<T> extends Consumer<StreamItem<? extends T>> {
         /**
          * Emit the item to the callback. Same as {@code accept(item, false)}.
+         * This method may optionally throw an {@link IllegalStateException} if
+         * the {@link StreamEmitter} did not follow the contract outlined in
+         * {@link StreamEmitter#emitOne(EmitCallback)}.
          *
          * @param item the item to emit.
-         * @see #accept(StreamItem, boolean)
+         * @throws IllegalStateException if this method is called in a way that
+         *             violates the contract outlined in
+         *             {@link StreamEmitter#emitOne(EmitCallback)}.
+         * @see StreamEmitter#emitOne(EmitCallback)
          */
         @Override
-        default void accept(StreamItem<? extends T> item) {
-            accept(item, false);
-        }
-
-        /**
-         * Emit the item to the callback as the last item. Same as
-         * {@code accept(item, true)}.
-         *
-         * @param item the item to emit.
-         * @see #accept(StreamItem, boolean)
-         */
-        default void acceptLast(StreamItem<? extends T> item) {
-            accept(item, true);
-        }
-
-        /**
-         * Emit the {@code item} to the callback. If the item is
-         * {@link Type#VALUE} and {@boolean isLast} is true, then this
-         * method also signals that a {@link Type#END} should be emitted next on
-         * the same thread. In that situation, this method is equivalent to
-         * calling {@code
-         *     accept(item);
-         *     accept(StreamItem.end());
-         * } over two invocations of {@link StreamEmitter#emitOne(EmitCallback)}
-         * but with the benefit of not having to keep extra stat if the emitter
-         * knows that it has no values left.
-         *
-         * @param item the item to emit.
-         * @param isLast if {@code true} also emit an end item.
-         */
-        void accept(StreamItem<? extends T> item, boolean isLast);
+        void accept(StreamItem<? extends T> item) throws IllegalStateException;
 
         /**
          * Signals to the owner of the callback that the emitter is ready for
@@ -133,23 +107,44 @@ public interface StreamEmitter<T> {
          */
         void next() throws IllegalStateException;
 
-        default void acceptValue(T value) {
-            acceptValue(value, false);
+        /**
+         * Calls {@link #accept(StreamItem)} with the specified value.
+         *
+         * @param value the value to emit.
+         * @throws IllegalStateException if this method is called in a way that
+         *             violates the contract outlined in
+         *             {@link StreamEmitter#emitOne(EmitCallback)}.
+         * @see {@link #accept(StreamItem)}
+         * @see StreamEmitter#emitOne(EmitCallback)
+         */
+        default void acceptValue(T value) throws IllegalStateException {
+            accept(StreamItem.value(value));
         }
 
-        default void acceptLastValue(T value) {
-            acceptValue(value, true);
-        }
-
-        default void acceptValue(T value, boolean isLast) {
-            accept(StreamItem.value(value), isLast);
-        }
-
-        default void acceptError(Throwable error) {
+        /**
+         * Calls {@link #accept(StreamItem)} with the specified value.
+         *
+         * @param error the error to emit.
+         * @throws IllegalStateException if this method is called in a way that
+         *             violates the contract outlined in
+         *             {@link StreamEmitter#emitOne(EmitCallback)}.
+         * @see {@link #accept(StreamItem)}
+         * @see StreamEmitter#emitOne(EmitCallback)
+         */
+        default void acceptError(Throwable error) throws IllegalStateException {
             accept(StreamItem.error(error));
         }
 
-        default void acceptEnd() {
+        /**
+         * Calls {@link #accept(StreamItem)} with an {@link Type#END} item.
+         *
+         * @throws IllegalStateException if this method is called in a way that
+         *             violates the contract outlined in
+         *             {@link StreamEmitter#emitOne(EmitCallback)}.
+         * @see {@link #accept(StreamItem)}
+         * @see StreamEmitter#emitOne(EmitCallback)
+         */
+        default void acceptEnd() throws IllegalStateException {
             accept(StreamItem.end());
         }
 

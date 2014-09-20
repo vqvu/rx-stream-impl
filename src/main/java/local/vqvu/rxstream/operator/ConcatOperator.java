@@ -53,28 +53,19 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
         private void pullChildSourceAndEmit(EmitCallback<? super T> cb) {
             parentSource.emitOne(new EmitCallback<Publisher<? extends T>>() {
                 @Override
-                public void accept(StreamItem<? extends Publisher<? extends T>> item, boolean isLast) {
+                public void accept(StreamItem<? extends Publisher<? extends T>> item) {
                     synchronized(lock) {
                         if (!item.isValue()) {
                             endReached = true;
-                            cb.accept(item.castIfNotValue());
+                            if (item.isError() || childSource == null) {
+                                cb.accept(item.castIfNotValue());
+                            } else {
+                                emitNext(cb);
+                            }
                         } else {
-                            endReached = isLast;
                             Publisher<? extends T> pub = item.getValue();
                             if (pub != null) {
                                 childSource = pub.createEmitter();
-                            }
-
-                            // This means #next won't be called.
-                            if (isLast) {
-                                if (childSource == null) {
-                                    // There is nothing left to emit, so stop.
-                                    cb.acceptEnd();
-                                } else {
-                                    // Next won't be called, so we have to
-                                    // manually call emitNext();
-                                    emitNext(cb);
-                                }
                             }
                         }
                     }
@@ -102,23 +93,15 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
             synchronized (lock) {
                 childSource.emitOne(new EmitCallback<T>() {
                     @Override
-                    public void accept(StreamItem<? extends T> item, boolean isLast) {
-                        // TODO: Bug with ERROR item handling.
+                    public void accept(StreamItem<? extends T> item) {
                         synchronized (lock) {
-                            if (!item.isValue() || isLast) {
+                            if (!item.isValue()) {
                                 childSource = null;
-                            }
-
-                            if (item.isError() || isLast || (item.isEnd() && endReached)) {
-                                if (endReached) {
-                                    cb.acceptLast(item);
-                                    return;
+                                if (endReached || item.isError()) {
+                                    cb.accept(item);
+                                } else {
+                                    next();
                                 }
-                            }
-
-                            // Here means not error and not last and end not reached.
-                            if (item.isEnd()) {
-                                next();
                             } else {
                                 cb.accept(item);
                             }

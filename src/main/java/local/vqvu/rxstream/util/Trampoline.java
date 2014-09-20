@@ -1,5 +1,6 @@
 package local.vqvu.rxstream.util;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import local.vqvu.rxstream.emitter.StreamEmitter;
@@ -13,7 +14,6 @@ public class Trampoline<T> {
     private boolean paused;
     private boolean inEventLoop;
     private boolean waitingOnEmit;
-    private boolean emitEndNext;
 
     private final Object lock;
 
@@ -26,7 +26,6 @@ public class Trampoline<T> {
         this.paused = true;
         this.inEventLoop = false;
         this.waitingOnEmit = false;
-        this.emitEndNext = false;
 
         this.lock = this;
     }
@@ -74,6 +73,7 @@ public class Trampoline<T> {
         synchronized (lock) {
             pause();
             done = true;
+            waitingOnEmit = false;
         }
     }
 
@@ -83,10 +83,6 @@ public class Trampoline<T> {
      */
     private void next() {
         synchronized (lock) {
-            if (emitEndNext || done || !waitingOnEmit) {
-                throw new IllegalStateException("Next called too many times.");
-            }
-
             waitingOnEmit = false;
 
             runEmitLoop();
@@ -94,31 +90,46 @@ public class Trampoline<T> {
     }
 
     private void emit(StreamItem<? extends T> item) {
-        consumer.accept(item);
+        synchronized (lock) {
+            if (done) {
+                return;
+            }
 
-        if (emitEndNext) {
-            consumer.accept(StreamItem.end());
-            emitEndNext = false;
-        }
+            waitingOnEmit = false;
+            consumer.accept(item);
 
-        if (!item.isValue()) {
-            stop();
+            if (!item.isValue()) {
+                stop();
+            }
         }
     }
 
     private class Callback implements EmitCallback<T> {
-        @Override
-        public void accept(StreamItem<? extends T> item, boolean isLast) {
-            System.out.println(item);
-            if (item.isValue() && isLast) {
-                emitEndNext = true;
+        private static final int STATE_UNUSED = 0;
+        private static final int STATE_SEEN_VALUE = 1;
+        private static final int STATE_SEEN_END_OR_NEXT = 2;
+
+        private final AtomicInteger state;
+
+        public Callback() {
+            this.state = new AtomicInteger(STATE_UNUSED);
+        }
+
+        private void checkNotUsed(int nextState, String method) throws IllegalStateException {
+            if (state.getAndSet(nextState) >= nextState) {
+                throw new IllegalStateException(method + " called too many times.");
             }
+        }
+
+        @Override
+        public void accept(StreamItem<? extends T> item) throws IllegalStateException {
+            checkNotUsed(item.isValue() ? STATE_SEEN_VALUE : STATE_SEEN_END_OR_NEXT, "accept");
             emit(item);
         }
 
         @Override
         public void next() throws IllegalStateException {
-            System.out.println("NEXT");
+            checkNotUsed(STATE_SEEN_END_OR_NEXT, "next");
             Trampoline.this.next();
         }
 

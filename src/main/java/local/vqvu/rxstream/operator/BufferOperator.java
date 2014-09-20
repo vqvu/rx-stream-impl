@@ -33,7 +33,7 @@ public class BufferOperator<T> implements Operator<T,List<T>> {
         }
 
         @Override
-        public void accept(StreamItem<? extends T> item, boolean isLast,
+        public void accept(StreamItem<? extends T> item,
                 EmitCallback<? super List<T>> cb) {
             synchronized (lock) {
                 if (item.isValue()) {
@@ -52,12 +52,11 @@ public class BufferOperator<T> implements Operator<T,List<T>> {
                     buffer = null;
                     cb.accept(item.castIfNotValue());
                 } else {
-                    if (buffer == null) {
-                        cb.acceptEnd();
-                    } else {
-                        cb.acceptLastValue(buffer);
+                    if (buffer != null) {
+                        cb.acceptValue(buffer);
                         buffer = null;
                     }
+                    cb.acceptEnd();
                 }
             }
         }

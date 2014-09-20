@@ -88,7 +88,8 @@ public class PublisherCreationTest {
                     cb.next();
                     break;
                 case 3:
-                    cb.acceptLastValue(Publishers.just(2));
+                    cb.acceptValue(Publishers.just(2));
+                    cb.acceptEnd();
                     break;
                 }
             };
