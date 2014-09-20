@@ -18,6 +18,6 @@ public class ErrorEmitter<T> implements SyncStreamEmitter<T> {
 
     @Override
     public void emitOne(EmitCallback<? super T> cb) {
-        cb.accept(StreamItem.<T>error(error));
+        cb.accept(StreamItem.error(error));
     }
 }

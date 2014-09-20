@@ -73,6 +73,80 @@ public class PublisherCreationTest {
     }
 
     @Test
+    public void concatHandlesNextWithoutItem() {
+        List<Integer> expected = Arrays.asList(1, 2);
+        Publisher<Publisher<Integer>> pubOfPub = Publishers.<Publisher<Integer>>createSync(() -> {
+            List<Object> count = new ArrayList<>();
+            return (cb) -> {
+                count.add(this);
+                switch (count.size()) {
+                case 1:
+                    cb.next();
+                    break;
+                case 2:
+                    cb.acceptValue(Publishers.just(1));
+                    cb.next();
+                    break;
+                case 3:
+                    cb.acceptLastValue(Publishers.just(2));
+                    break;
+                }
+            };
+        });
+
+        Publisher<Integer> pub = Publishers.concat(pubOfPub);
+        assertThat(pub, emitsValues(expected));
+        assertThat(pub, emitsValues(expected));
+        assertThat(Iterables.asList(pub.toSynchronousPublisher()), equalTo(expected));
+    }
+
+    @Test
+    public void concatHandlesEmpty() {
+        List<Integer> expected = Arrays.asList();
+        Publisher<Integer> pub = Publishers.concat(Publishers.empty());
+        assertThat(pub, emitsNothing());
+        assertThat(pub, emitsNothing());
+        assertThat(Iterables.asList(pub.toSynchronousPublisher()), equalTo(expected));
+    }
+
+    @Test
+    public void concatHandlesErrors() {
+        RuntimeException e = new RuntimeException();
+        Publisher<Integer> errorPub = Publishers.<Integer>createSync(() -> {
+            List<Object> count = new ArrayList<>();
+            return (cb) -> {
+                count.add(this);
+                switch (count.size()) {
+                case 1:
+                    cb.next();
+                    break;
+                case 2:
+                    cb.acceptError(e);
+                    break;
+                }
+            };
+        });
+
+        Publisher<Integer> pub = errorPub.concat(Publishers.empty());
+        assertThat(pub, emits(StreamItem.error(e)));
+        assertThat(pub, emits(StreamItem.error(e)));
+
+        thrown.expect(RuntimeException.class);
+        pub.toSynchronousPublisher().iterator().hasNext();
+    }
+
+    @Test
+    public void concatHandlesErrors2() {
+        RuntimeException e = new RuntimeException();
+        Publisher<Object> pub = Publishers.empty().concat(Publishers.error(e));
+        assertThat(pub, emits(StreamItem.error(e)));
+        assertThat(pub, emits(StreamItem.error(e)));
+
+        thrown.expect(RuntimeException.class);
+        pub.toSynchronousPublisher().iterator().hasNext();
+    }
+
+    @Test
     public void createBufferWorks() {
         List<List<Integer>> expected = Arrays.asList(Arrays.asList(1, 3),
                                                      Arrays.asList(5, 7),

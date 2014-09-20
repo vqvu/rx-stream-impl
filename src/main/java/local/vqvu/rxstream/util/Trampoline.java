@@ -109,6 +109,7 @@ public class Trampoline<T> {
     private class Callback implements EmitCallback<T> {
         @Override
         public void accept(StreamItem<? extends T> item, boolean isLast) {
+            System.out.println(item);
             if (item.isValue() && isLast) {
                 emitEndNext = true;
             }
@@ -117,6 +118,7 @@ public class Trampoline<T> {
 
         @Override
         public void next() throws IllegalStateException {
+            System.out.println("NEXT");
             Trampoline.this.next();
         }
 

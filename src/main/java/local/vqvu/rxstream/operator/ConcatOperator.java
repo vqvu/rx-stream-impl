@@ -28,10 +28,10 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
 
         @Override
         public void emitOne(EmitCallback<? super T> cb) {
-            synchronized (this) {
+            synchronized (lock) {
                 if (endReached && childSource == null) {
                     Throwable err = new StreamEmitterException("Emitter already reached the end.");
-                    cb.accept(StreamItem.<T>error(err));
+                    cb.accept(StreamItem.error(err));
                     return;
                 }
 
@@ -65,10 +65,16 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
                                 childSource = pub.createEmitter();
                             }
 
-                            // This means #next won't be called and there is
-                            // nothing left to emit.
-                            if (isLast && childSource == null) {
-                                cb.acceptEnd();
+                            // This means #next won't be called.
+                            if (isLast) {
+                                if (childSource == null) {
+                                    // There is nothing left to emit, so stop.
+                                    cb.acceptEnd();
+                                } else {
+                                    // Next won't be called, so we have to
+                                    // manually call emitNext();
+                                    emitNext(cb);
+                                }
                             }
                         }
                     }
@@ -76,7 +82,11 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
 
                 @Override
                 public void next() {
-                    emitNext(cb);
+                    if (childSource == null) {
+                        cb.next();
+                    } else {
+                        emitNext(cb);
+                    }
                 }
             });
         }
@@ -92,25 +102,25 @@ public class ConcatOperator<T> implements Operator<Publisher<? extends T>, T> {
             synchronized (lock) {
                 childSource.emitOne(new EmitCallback<T>() {
                     @Override
-                    public void accept(StreamItem<? extends T> item, boolean emitEnd) {
+                    public void accept(StreamItem<? extends T> item, boolean isLast) {
                         // TODO: Bug with ERROR item handling.
                         synchronized (lock) {
-                            if (item.isEnd()) {
+                            if (!item.isValue() || isLast) {
                                 childSource = null;
+                            }
+
+                            if (item.isError() || isLast || (item.isEnd() && endReached)) {
+                                if (endReached) {
+                                    cb.acceptLast(item);
+                                    return;
+                                }
+                            }
+
+                            // Here means not error and not last and end not reached.
+                            if (item.isEnd()) {
                                 next();
                             } else {
-                                if (!emitEnd) {
-                                    cb.accept(item);
-                                } else {
-                                    childSource = null;
-                                    if (endReached) {
-                                        // Nothing left, so we emit a last.
-                                        cb.acceptLast(item);
-                                    } else {
-                                        // Otherwise, signal we are ready for next.
-                                        next();
-                                    }
-                                }
+                                cb.accept(item);
                             }
                         }
                     }
